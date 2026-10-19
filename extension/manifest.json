@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Ad Blocker",
+  "version": "0.1.0",
+  "description": "Removes in-video YouTube ads in Safari.",
+  "permissions": ["scripting"],
+  "host_permissions": ["https://www.youtube.com/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["lib/circuit-breaker.js", "content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
