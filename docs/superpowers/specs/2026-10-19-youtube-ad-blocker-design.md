@@ -81,9 +81,10 @@ If an ad still reaches the player, it plays normally. The extension does not cli
 
 Because YouTube actively changes its player and sometimes detects ad blocking, the extension includes a small safety net. It is a startup check, not a permanent watchdog, so it can never reload a video the owner is already watching:
 
-- The check only arms after the extension has actually rewritten a player response for the current video.
+- The check only arms after the extension has actually rewritten a player request or response for the current video, and only while that video is still at the start. A mid-roll rewrite cannot arm it.
 - It disarms once the video has played continuously for 3 seconds.
-- While armed, it treats two things as failure: a visible playback error, or 25 seconds of unpaused playback with no forward progress. The 25 seconds is longer than YouTube’s 4–16 second SABR backoff, so normal backoff does not trip it.
+- While armed, it treats two things as failure: a visible playback error, or 25 seconds of unpaused playback with no forward progress. The 25 seconds starts only once a video element exists, and is longer than YouTube’s 4–16 second SABR backoff, so normal backoff does not trip it.
+- It ignores playback while an ad is showing, so an ad that slipped through is allowed to finish instead of triggering a reload.
 - On failure, it records “disabled for this site” in tab-scoped storage and reloads the page exactly once.
 - On that reload, and for the rest of the tab session, the page script does nothing. YouTube behaves as if no extension were installed, so ads play and the video works.
 - A fresh tab starts with blocking enabled again. The user can also turn the extension off entirely in Safari settings.
