@@ -1,0 +1,7 @@
+{
+  "name": "safari-youtube-ad-blocker",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}
