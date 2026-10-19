@@ -60,5 +60,110 @@
     return JSON.stringify(pruned);
   }
 
-  return { isPlayerRequest, addAdFreeParam, pruneAdFields, prunePlayerJson };
+  function notify(win, url) {
+    try {
+      console.debug('[ytadblock] rewritten', url);
+    } catch {}
+    try {
+      if (win.document && win.CustomEvent) {
+        win.document.dispatchEvent(new win.CustomEvent('ytadblock:rewritten'));
+      }
+    } catch {}
+  }
+
+  function installFetchHooks(win) {
+    if (win.__ytAdBlockFetchInstalled || typeof win.fetch !== 'function') return;
+    win.__ytAdBlockFetchInstalled = true;
+
+    const nativeFetch = win.fetch;
+    win.fetch = async function (input, init) {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      const player = isPlayerRequest(url);
+      let requestInit = init;
+
+      if (player && requestInit && typeof requestInit.body === 'string') {
+        const body = addAdFreeParam(requestInit.body);
+        if (body !== requestInit.body) {
+          requestInit = { ...requestInit, body };
+          notify(win, url);
+        }
+      }
+
+      const response = await nativeFetch.call(win, input, requestInit);
+      if (!player) return response;
+
+      try {
+        const text = await response.clone().text();
+        const pruned = prunePlayerJson(text);
+        if (pruned === text) return response;
+
+        const out = new win.Response(pruned, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+        try {
+          Object.defineProperty(out, 'url', { value: response.url, configurable: true });
+        } catch {}
+        notify(win, url);
+        return out;
+      } catch {
+        return response;
+      }
+    };
+
+    const xhr = win.XMLHttpRequest;
+    if (!xhr || !xhr.prototype) return;
+
+    const nativeOpen = xhr.prototype.open;
+    const nativeSend = xhr.prototype.send;
+
+    if (typeof nativeOpen === 'function') {
+      xhr.prototype.open = function (method, url, ...rest) {
+        try {
+          this.__ytAdBlockUrl = String(url);
+        } catch {}
+        return nativeOpen.call(this, method, url, ...rest);
+      };
+    }
+
+    if (typeof nativeSend === 'function') {
+      xhr.prototype.send = function (body) {
+        let outBody = body;
+        try {
+          if (isPlayerRequest(this.__ytAdBlockUrl) && typeof body === 'string') {
+            const rewritten = addAdFreeParam(body);
+            if (rewritten !== body) {
+              outBody = rewritten;
+              notify(win, this.__ytAdBlockUrl);
+            }
+          }
+        } catch {}
+
+        try {
+          this.addEventListener('readystatechange', () => {
+            if (this.readyState !== 4 || !isPlayerRequest(this.__ytAdBlockUrl)) return;
+            try {
+              const text = this.responseText;
+              const pruned = prunePlayerJson(text);
+              if (pruned === text) return;
+
+              Object.defineProperty(this, 'responseText', { value: pruned, configurable: true });
+              if (this.responseType === 'json') {
+                Object.defineProperty(this, 'response', {
+                  value: JSON.parse(pruned),
+                  configurable: true,
+                });
+              }
+              notify(win, this.__ytAdBlockUrl);
+            } catch {}
+          });
+        } catch {}
+
+        return nativeSend.call(this, outBody);
+      };
+    }
+  }
+
+  return { isPlayerRequest, addAdFreeParam, pruneAdFields, prunePlayerJson, installFetchHooks };
 });
