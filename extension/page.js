@@ -165,5 +165,64 @@
     }
   }
 
-  return { isPlayerRequest, addAdFreeParam, pruneAdFields, prunePlayerJson, installFetchHooks };
+  function installInlineResponseHook(win) {
+    if (win.__ytAdBlockInlineInstalled) return;
+    win.__ytAdBlockInlineInstalled = true;
+
+    let current = win.ytInitialPlayerResponse;
+
+    function apply(value) {
+      const before = JSON.stringify(value);
+      const pruned = pruneAdFields(value);
+      if (JSON.stringify(pruned) !== before) notify(win, 'inline-player-response');
+      return pruned;
+    }
+
+    try {
+      Object.defineProperty(win, 'ytInitialPlayerResponse', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          return current;
+        },
+        set(value) {
+          current = apply(value);
+        },
+      });
+    } catch {
+      try {
+        win.ytInitialPlayerResponse = apply(win.ytInitialPlayerResponse);
+      } catch {}
+      return;
+    }
+
+    if (current !== undefined) current = apply(current);
+  }
+
+  function installPageHooks(win) {
+    if (win.__ytAdBlockInstalled) return;
+    win.__ytAdBlockInstalled = true;
+
+    installFetchHooks(win);
+    installInlineResponseHook(win);
+    try {
+      console.debug('[ytadblock] installed');
+    } catch {}
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      installPageHooks(window);
+    } catch {}
+  }
+
+  return {
+    isPlayerRequest,
+    addAdFreeParam,
+    pruneAdFields,
+    prunePlayerJson,
+    installFetchHooks,
+    installInlineResponseHook,
+    installPageHooks,
+  };
 });
