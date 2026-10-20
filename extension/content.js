@@ -1,4 +1,7 @@
 (function () {
+  if (globalThis.__ytAdBlockContentInstalled) return;
+  globalThis.__ytAdBlockContentInstalled = true;
+
   const DISABLED_KEY = 'ytadblock:disabled';
 
   function isDisabled() {
