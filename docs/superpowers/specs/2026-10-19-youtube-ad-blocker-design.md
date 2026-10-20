@@ -75,7 +75,11 @@ The exact current fields and marker change over time. They live in one clearly n
 
 ### No auto-skip
 
-If an ad still reaches the player, it plays normally. The extension does not click skip, seek to the end, mute, or otherwise manipulate the player. That behavior is what creates the worst failures, and the owner chose the fallback.
+If an ad still reaches the player, it plays normally. The extension does not click skip, seek to the end, mute, or otherwise manipulate playback. The one exception is the startup forced session below, which is limited to the first seconds of a video and never touches mid-roll playback.
+
+### Startup forced session
+
+Some cold loads embed the ad instructions so early that the page script cannot strip them before the player reads them. When the player exists and its current response still contains ad instructions, the page script sets the video’s inline playback data to “no ad”, cancels playback, and loads the same video once. It records the video ID and never repeats for that video. If the new session still carries an ad, the ad plays.
 
 ### Circuit breaker: video always wins
 

@@ -41,7 +41,7 @@ The extension starts working on the next YouTube page load. No further action is
 
 ## Use
 
-Open YouTube normally. If an ad gets through, it plays; the extension does not click skip or seek because that is what breaks players.
+Open YouTube normally. If a cold-load pre-roll still reaches the player, the extension may briefly reload the player once with an ad-free session. It never does this mid-video and never more than once per video. If that still fails, the ad plays; the extension does not click skip or seek because that is what breaks players.
 
 If a video fails after the block runs, the extension disables itself for that tab and reloads once. The page then plays with ads. Close the tab to start fresh with blocking enabled again.
 

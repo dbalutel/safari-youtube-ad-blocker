@@ -199,12 +199,83 @@
     if (current !== undefined) current = apply(current);
   }
 
+  function hasEntries(value) {
+    return Array.isArray(value) ? value.length > 0 : Boolean(value);
+  }
+
+  function forceAdFreeSession(win) {
+    try {
+      const doc = win.document;
+      const player = doc.getElementById('movie_player') || doc.querySelector('#movie_player');
+      if (!player) return false;
+
+      const response = player.getPlayerResponse && player.getPlayerResponse();
+      if (!response) return false;
+
+      const videoData = player.getVideoData && player.getVideoData();
+      const videoId = response.videoDetails?.videoId
+        || videoData?.video_id
+        || new URL(win.location.href).searchParams.get('v');
+      if (!videoId) return false;
+
+      const seen = win.__ytAdBlockSeenVideos
+        || (win.__ytAdBlockSeenVideos = new Set());
+      if (seen.has(videoId)) return false;
+
+      const current = player.getProgressState?.()?.current
+        ?? (player.getCurrentTime && player.getCurrentTime())
+        ?? 0;
+      if (current > 3) {
+        seen.add(videoId);
+        return false;
+      }
+
+      const adShowing = Boolean(doc.querySelector('.ad-showing, .ytp-ad-player-overlay'));
+      const hasAds = hasEntries(response.adPlacements)
+        || hasEntries(response.adSlots)
+        || hasEntries(response.playerAds)
+        || adShowing;
+
+      if (!hasAds || typeof player.loadVideoById !== 'function') {
+        seen.add(videoId);
+        return false;
+      }
+
+      seen.add(videoId);
+      if (videoData) videoData.isInlinePlaybackNoAd = true;
+      player.cancelPlayback?.();
+      player.loadVideoById(videoId);
+
+      try {
+        console.debug('[ytadblock] forced ad-free session', videoId);
+      } catch {}
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function startAdWatch(win) {
+    if (win.__ytAdBlockWatchStarted) return;
+    win.__ytAdBlockWatchStarted = true;
+
+    const check = () => forceAdFreeSession(win);
+    try {
+      if (typeof win.setInterval === 'function') win.setInterval(check, 1000);
+      if (typeof win.setTimeout === 'function') win.setTimeout(check, 1000);
+      if (win.document && typeof win.document.addEventListener === 'function') {
+        win.document.addEventListener('yt-navigate-finish', check);
+      }
+    } catch {}
+  }
+
   function installPageHooks(win) {
     if (win.__ytAdBlockInstalled) return;
     win.__ytAdBlockInstalled = true;
 
     installFetchHooks(win);
     installInlineResponseHook(win);
+    startAdWatch(win);
     try {
       console.debug('[ytadblock] installed');
     } catch {}
@@ -224,5 +295,6 @@
     installFetchHooks,
     installInlineResponseHook,
     installPageHooks,
+    forceAdFreeSession,
   };
 });
