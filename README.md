@@ -9,6 +9,14 @@ It deliberately does not block page ads, feed ads, ads on other sites, or YouTub
 From the repository root:
 
 ```bash
+./build.sh
+```
+
+The script runs the tests, generates the Xcode project if it is missing, signs with an Apple Development certificate when one is available, and falls back to ad-hoc signing. It prints the built app path.
+
+Manual build:
+
+```bash
 /Applications/Xcode.app/Contents/Developer/usr/bin/safari-web-extension-converter extension \
   --project-location . \
   --app-name "YouTube Ad Blocker" \
